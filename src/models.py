@@ -55,9 +55,8 @@ class StandardCNN(nn.Module):
 
 class DepthwiseSeparableBlock(nn.Module):
     """
-    TODO for students:
-    implement one depthwise separable block using a depthwise 3x3 convolution
-    followed by a pointwise 1x1 convolution.
+    Implementation of one depthwise separable block using a depthwise 3x3 convolution
+    followed by a pointwise 1x1 convolution, each followed by BatchNorm + ReLU.
 
     Requirements:
     - use `stride=stride` in the depthwise convolution,
@@ -65,11 +64,27 @@ class DepthwiseSeparableBlock(nn.Module):
     - use `groups=in_channels` for the depthwise convolution,
     - keep BatchNorm + ReLU after each convolution stage.
     """
-
     def __init__(self, in_channels: int, out_channels: int, stride: int = 1) -> None:
         super().__init__()
-        self.block = nn.Identity()
-        raise NotImplementedError("Implement DepthwiseSeparableBlock before training SeparableCNN.")
+        self.block = nn.Sequential(
+            # Depthwise convolution: one filter per input channel
+            nn.Conv2d(
+                in_channels,
+                in_channels,
+                kernel_size=3,
+                stride=stride,       # requirement in the depthwise convolution
+                padding=1,           # requirement in the depthwise convolution
+                groups=in_channels,  # BatchNorm + ReLU after each convolution stage requirement
+                bias=False,
+            ),
+            nn.BatchNorm2d(in_channels),    # requirement in the depthwise convolution
+            nn.ReLU(inplace=True),
+
+            # Pointwise convolution: mix channels with 1x1 conv
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.block(x)
