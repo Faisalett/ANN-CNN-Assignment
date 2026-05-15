@@ -39,6 +39,7 @@ os.environ["TORCH_CPP_LOG_LEVEL"] = "ERROR"
 # ---------------------------------------------------------------------------
 LR = 1e-3
 EPOCHS = 15
+# ---------------------------------------------------------------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CHECKPOINT_DIR = "checkpoints/part_a"
 
@@ -150,6 +151,7 @@ def train_one_epoch(model: nn.Module, loader: DataLoader, criterion: nn.Module, 
     float
         The average training loss over the epoch.
     """
+
     # Set model to training mode
     model.train()
     total_loss = 0.0
@@ -197,6 +199,7 @@ def evaluate(model: nn.Module, loader: DataLoader) -> tuple[float, float]:
         - accuracy: The overall accuracy of the model on the evaluation set.
         - macro F1: The macro-averaged F1 score across all classes.
     """
+
     # Set the model to evaluation mode
     model.eval()
     all_preds, all_labels = [], []
@@ -244,6 +247,7 @@ def train_model(name: str, train_loader: DataLoader, val_loader: DataLoader) -> 
         - "flops": The total number of FLOPs for a single forward pass through the model.
         - "checkpoint": The file path to the saved checkpoint of the trained model.
     """
+
     # Ensure reproducibility by setting the random seed before model initialization
     torch.manual_seed(SEED)
 
@@ -255,7 +259,7 @@ def train_model(name: str, train_loader: DataLoader, val_loader: DataLoader) -> 
 
     # Print training header with model name, parameter count, and FLOP count
     train_section = f"Training: {name}\n  Parameters : {count_parameters(model):,}\n  FLOPs      : {count_flops(model):,}"
-    cprint(format_section_header(train_section, align='left'), color="yellow")
+    cprint(format_section_header(train_section, align='left')[:-1], color="yellow")
 
     best_acc = 0.0
     best_state = None
@@ -314,6 +318,7 @@ def print_results_table(results: list[dict]) -> None:
         A list of dictionaries, each containing the results for a model
         with keys: "name", "accuracy", "macro_f1", "parameters", "flops", and "checkpoint".
     """
+
     # Print a formatted table of results for all models
     print("\n" + "=" * 75)
     print(f"{'Model':<25} {'Accuracy':>10} {'Macro F1':>10} {'Params':>12} {'FLOPs':>12}")
@@ -342,6 +347,7 @@ def main() -> None:
     """
     Main function to train both classifiers and print results.
     """
+
     # Get data loaders for training and validation sets
     train_loader, val_loader = get_classification_loaders()
     results = []
