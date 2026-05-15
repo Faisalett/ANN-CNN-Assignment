@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 
 from config import SEED
 from data import get_metric_loaders
-from losses import TripletLoss, build_triplets
+from losses import TripletLoss, build_triplets, ContrastiveLoss
 from models import build_model
 from utils import cprint, format_section_header
 
@@ -137,7 +137,7 @@ def compute_recall_at_1(model: nn.Module, loader: DataLoader) -> float:
     return hits / n
 
 
-def train_metric(backbone_name: str) -> None:
+def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     """
     Train a metric learning model with the specified backbone architecture.
 
@@ -145,6 +145,8 @@ def train_metric(backbone_name: str) -> None:
     ----------
     backbone_name : str
         The name of the backbone architecture to use for training (e.g., 'cnn' or 'separable_cnn').
+    loss_type : str
+        The type of loss to use for training (default: 'triplet'). Options include 'triplet' for Triplet Loss and 'contrastive' for Contrastive Loss.
     """
 
     # Set random seed for reproducibility
@@ -153,8 +155,13 @@ def train_metric(backbone_name: str) -> None:
     # Load the backbone model with Part A weights and replace the head for metric learning
     model = load_backbone(backbone_name)
 
-    # Initialize the triplet loss criterion, optimizer, and learning rate scheduler
-    criterion = TripletLoss(margin=0.3)
+    # Initialize the loss criterion based on the specified loss type (triplet or contrastive)
+    if loss_type == "contrastive":
+        criterion = ContrastiveLoss(margin=1.0)
+    else:
+        criterion = TripletLoss(margin=0.3)
+
+    # Set up the optimizer (Adam) and learning rate scheduler (Cosine Annealing) for training
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
@@ -245,6 +252,8 @@ def main() -> None:
         choices=["cnn", "separable_cnn"],
         help="Which Part A backbone to use (default: separable_cnn)",
     )
+    parser.add_argument("--loss", default="triplet", choices=["triplet", "contrastive"],
+                        help="Metric learning loss to use (default: triplet)")
     args = parser.parse_args()
 
     # Start the metric learning training process with the specified backbone architecture
