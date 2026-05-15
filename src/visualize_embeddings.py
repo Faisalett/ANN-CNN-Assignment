@@ -17,7 +17,6 @@ import os
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 from sklearn.manifold import TSNE
 import matplotlib
 import matplotlib.pyplot as plt
@@ -25,11 +24,10 @@ import matplotlib.patches as mpatches
 
 from data import get_metric_loaders
 from config import SEED
-from src.visualize_retrieval import load_metric_model, embed_loader
+from loaders import load_metric_model, embed_loader
 from utils import cprint
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_DIR = "checkpoints/part_b"
 OUTPUT_DIR = "results"
 
 # FashionMNIST classes in order

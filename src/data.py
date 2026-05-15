@@ -106,9 +106,7 @@ def get_classification_loaders(
     return train_loader, val_loader
 
 
-def get_metric_loaders(
-        batch_size: int = METRIC_BATCH_SIZE,
-) -> tuple[DataLoader, DataLoader]:
+def get_metric_loaders(batch_size: int = METRIC_BATCH_SIZE,) -> tuple[DataLoader, DataLoader]:
     """
     Return (train_loader, eval_loader) for Part B metric learning.
 

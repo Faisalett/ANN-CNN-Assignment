@@ -105,40 +105,39 @@ def build_triplets(
     labels: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] or None:
     """
-    Build (anchor, positive, negative) triplets from a batch.
-
-    For each sample, randomly picks one positive and one negative from the batch.
-    Returns None if the batch does not contain at least two classes.
+    Batch-hard mining (Hermans et al., 2017):
+    For each anchor, pick the hardest positive (furthest same-class)
+    and hardest negative (closest different-class) in the batch.
     """
-    device = embeddings.device
-    anchors, positives, negatives = [], [], []
-
-    unique_labels = labels.unique()
-    if unique_labels.numel() < 2:
+    if labels.unique().numel() < 2:
         return None
 
-    for i in range(len(embeddings)):
-        label_i = labels[i]
-        pos_mask = (labels == label_i).nonzero(as_tuple=True)[0]
-        neg_mask = (labels != label_i).nonzero(as_tuple=True)[0]
+    # L2-normalise before computing distances
+    emb = F.normalize(embeddings, dim=1)
+    dist = torch.cdist(emb, emb)  # (B, B)
 
-        # Need at least one other positive and one negative
-        if pos_mask.numel() < 2 or neg_mask.numel() == 0:
-            continue
+    same = labels.unsqueeze(0) == labels.unsqueeze(1)   # (B, B)
+    diff = ~same
 
-        pos_candidates = pos_mask[pos_mask != i]
-        j = pos_candidates[torch.randint(len(pos_candidates), (1,), device=device)]
-        k = neg_mask[torch.randint(len(neg_mask), (1,), device=device)]
+    # Hardest positive: furthest among same-class (excluding self)
+    same.fill_diagonal_(False)
+    dist_pos = dist.clone()
+    dist_pos[~same] = -float("inf")
+    hardest_pos = dist_pos.argmax(dim=1)
 
-        anchors.append(embeddings[i])
-        positives.append(embeddings[j])
-        negatives.append(embeddings[k])
+    # Hardest negative: closest among different-class
+    dist_neg = dist.clone()
+    dist_neg[~diff] = float("inf")
+    hardest_neg = dist_neg.argmin(dim=1)
 
-    if not anchors:
+    # Drop anchors that have no valid positive or negative
+    valid = same.any(dim=1) & diff.any(dim=1)
+    if not valid.any():
         return None
 
+    idx = valid.nonzero(as_tuple=True)[0]
     return (
-        torch.stack(anchors),
-        torch.stack(positives),
-        torch.stack(negatives),
+        embeddings[idx],
+        embeddings[hardest_pos[idx]],
+        embeddings[hardest_neg[idx]],
     )

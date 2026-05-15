@@ -1,7 +1,11 @@
 """
 Utility functions for any project, including custom print functions with color and formatting options.
-Made by me, for me, but feel free to use and modify as needed.
+Made by me (Faisal), for me, but feel free to use and modify as needed.
+
+I use these for most projects that involve a lot of terminal output, to make it easier to read and visually parse important information
 """
+import re
+import sys
 
 # ANSI escape codes for text colors
 text_colors = {
@@ -190,3 +194,23 @@ def cprintf(template, color_true='blue', color_false='red', **kwargs):
 
     # Use standard .format() to inject the colored strings
     print(template.format(**formatted_values))
+
+
+class Logger(object):
+    def __init__(self, filename="run_log.txt"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "w") # "a" appends, "w" overwrites
+
+        # Regex to match ANSI escape codes (for removing color codes from log file)
+        self.ansi_escape = re.compile(r'\x1b\[[0-9;]*[mK]')
+
+    def write(self, message):
+        self.terminal.write(message)
+        clean_message = self.ansi_escape.sub('', message)
+        self.log.write(clean_message)
+        self.log.flush() # Ensures it writes to disk immediately
+
+    def flush(self):
+        # This flush method is needed for python 3 compatibility.
+        pass
+

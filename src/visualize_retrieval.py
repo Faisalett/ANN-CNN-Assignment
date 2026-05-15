@@ -22,18 +22,16 @@ import os
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from PIL import Image
 
 from data import get_metric_loaders
-from models import build_model
+from loaders import load_metric_model, embed_loader
 from utils import colorize, cprint
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_DIR = "checkpoints/part_b"
 OUTPUT_DIR = "results"
 
 # FashionMNIST classes in order
@@ -41,73 +39,6 @@ CLASSES = [
     "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
     "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot",
 ]
-
-
-def load_metric_model(backbone_name: str, print_recall: bool = True) -> nn.Module:
-    """
-    Load the trained metric model from Part B.
-
-    Parameters
-    ----------
-    backbone_name : str
-        The backbone architecture name (e.g., "cnn" or "separable_cnn").
-    print_recall : bool
-        Whether to print the Recall@1 achieved at training time (default: True).
-
-    Returns
-    -------
-    nn.Module
-        The loaded metric model, set to eval mode and moved to DEVICE.
-    """
-
-    # Load the checkpoint of the trained metric model
-    ckpt_path = os.path.join(CHECKPOINT_DIR, f"{backbone_name}_metric.pt")
-    if not os.path.exists(ckpt_path):
-        raise FileNotFoundError(f"Part B checkpoint not found at {ckpt_path}. Run train_metric.py first.")
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
-
-    # Build the model architecture, load the state dict move to DEVICE, and set to eval mode
-    embedding_dim = ckpt["embedding_dim"]
-    model = build_model(backbone_name, embedding_dim=embedding_dim, input_channels=1)
-    model.load_state_dict(ckpt["model_state"])
-    model.to(DEVICE).eval()
-
-    if print_recall:
-        print(f"  Recall@1 at training time: {ckpt.get('recall_at_1', 'N/A'):.4f}")
-    return model
-
-
-@torch.no_grad()
-def embed_loader(model: nn.Module, loader: DataLoader):
-    """
-    Embed all images from the loader using the model and collect their labels and original images.
-
-    Parameters
-    ----------
-    model : nn.Module
-        The metric model used to compute embeddings.
-    loader : DataLoader
-        The DataLoader providing batches of (images, labels).
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        A tuple containing:
-        - embeddings: A NumPy array of shape (N, D) with the computed embeddings.
-        - labels: A NumPy array of shape (N,) with the corresponding class labels.
-    """
-    all_emb, all_lbl, all_img = [], [], []
-    for images, labels in loader:
-        emb = model(images.to(DEVICE))
-        all_emb.append(emb.cpu())
-        all_lbl.append(labels)
-        all_img.append(images)
-
-    return (
-        torch.cat(all_emb),  # (N, D)
-        torch.cat(all_lbl),  # (N,)
-        torch.cat(all_img),  # (N, 1, H, W)
-    )
 
 
 def add_border(img: torch.Tensor, color: tuple[float, float, float], width: int = 3) -> torch.Tensor:
@@ -217,6 +148,7 @@ def build_retrieval_grid(query_imgs: torch.Tensor, query_labels: torch.Tensor, d
 
     return torch.stack(rows)  # (Q*(top_k+1), 3, H, W)
 
+
 def upscale_grid(grid_np: np.ndarray, scale_factor: int = 4) -> Image:
     """
     Upscale the final grid using nearest-neighbor interpolation to keep pixel edges crisp for the report.
@@ -235,6 +167,7 @@ def upscale_grid(grid_np: np.ndarray, scale_factor: int = 4) -> Image:
     """
     img = Image.fromarray(grid_np)
     w, h = img.size
+
     # Use Resampling.NEAREST to avoid blurring the FashionMNIST pixels
     return img.resize((w * scale_factor, h * scale_factor), resample=Image.NEAREST)
 

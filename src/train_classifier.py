@@ -18,6 +18,7 @@ It also prints a summary table so you can decide which backbone to carry into Pa
 """
 
 import os
+import sys
 import time
 
 import torch
@@ -29,10 +30,8 @@ from torch.utils.data import DataLoader
 from config import PART_A_MODELS, SEED
 from data import get_classification_loaders
 from models import build_model
-from utils import cprint, format_section_header, format_underline, format_bold
+from utils import cprint, format_section_header, format_underline, format_bold, Logger
 
-# Supress verbose C++ warnings from PyTorch internals for cleaner output; these don't affect training but can be distracting.
-os.environ["TORCH_CPP_LOG_LEVEL"] = "ERROR"
 
 # ---------------------------------------------------------------------------
 # Hyper-parameters (safe to change without breaking comparability)
@@ -347,6 +346,9 @@ def main() -> None:
     """
     Main function to train both classifiers and print results.
     """
+    original_terminal = sys.stdout
+    logger_instance = Logger("results/train_classifier_log.txt")
+    sys.stdout = logger_instance
 
     # Get data loaders for training and validation sets
     train_loader, val_loader = get_classification_loaders()
@@ -357,6 +359,9 @@ def main() -> None:
         result = train_model(name, train_loader, val_loader)
         results.append(result)
     print_results_table(results)
+
+    sys.stdout = original_terminal
+    logger_instance.log.close()
 
 
 if __name__ == "__main__":

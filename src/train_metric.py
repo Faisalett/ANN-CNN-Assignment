@@ -16,6 +16,7 @@ the best model to:
 
 import argparse
 import os
+import sys
 
 import torch
 import torch.nn as nn
@@ -25,61 +26,20 @@ from torch.utils.data import DataLoader
 from config import SEED
 from data import get_metric_loaders
 from losses import TripletLoss, build_triplets, ContrastiveLoss
-from models import build_model
-from utils import cprint, format_section_header
+from loaders import load_backbone
+from utils import cprint, format_section_header, Logger
+import torch.nn.functional as F
 
 # ---------------------------------------------------------------------------
 # Hyper-parameters
 # ---------------------------------------------------------------------------
 EMBEDDING_DIM = 64
-LR = 3e-4
-EPOCHS = 20
+LR = 5e-5
+EPOCHS = 30
+WARMUP_EPOCHS = 5
 # ---------------------------------------------------------------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-PART_A_CHECKPOINT_DIR = "checkpoints/part_a"
 CHECKPOINT_DIR = "checkpoints/part_b"
-
-
-def load_backbone(backbone_name: str) -> nn.Module:
-    """
-    Load Part A weights and swap the head for an embedding head.
-
-    Parameters
-    ----------
-    backbone_name : str
-        The name of the backbone architecture to load (e.g., 'cnn' or 'separable_cnn').
-
-    Returns
-    -------
-    nn.Module
-        A PyTorch model initialized with the Part A weights for the specified backbone,
-        but with the classification head replaced by an embedding head suitable for metric learning.
-        The model is moved to the specified DEVICE (GPU if available, otherwise CPU).
-    """
-
-    # Define path to the checkpoint generated in Part A
-    ckpt_path = os.path.join(PART_A_CHECKPOINT_DIR, f"{backbone_name}.pt")
-
-    # Ensure the required backbone exists before proceeding
-    if not os.path.exists(ckpt_path):
-        raise FileNotFoundError(f"Part A checkpoint not found at {ckpt_path}. Run train_classifier.py first.")
-
-    # Load the checkpoint onto the active device (CPU or GPU)
-    ckpt = torch.load(ckpt_path, map_location=DEVICE)
-
-    # Build model with embedding head instead of classification head
-    model = build_model(backbone_name, embedding_dim=EMBEDDING_DIM, input_channels=1)
-
-    # Load the backbone weights from Part A, ignoring the head layers
-    state = ckpt["model_state"]
-    compatible = {k: v for k, v in state.items() if "head" not in k}
-    missing, unexpected = model.load_state_dict(compatible, strict=False)
-
-    # Print summary of loaded weights
-    print(f"Loaded Part A weights for '{backbone_name}'")
-    if missing:
-        print(f"Randomly initialized: {missing}")
-    return model.to(DEVICE)
 
 
 @torch.no_grad()
@@ -136,7 +96,6 @@ def compute_recall_at_1(model: nn.Module, loader: DataLoader) -> float:
 
     return hits / n
 
-
 def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     """
     Train a metric learning model with the specified backbone architecture.
@@ -153,13 +112,18 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     torch.manual_seed(SEED)
 
     # Load the backbone model with Part A weights and replace the head for metric learning
-    model = load_backbone(backbone_name)
+    model = load_backbone(backbone_name, EMBEDDING_DIM)
+
+    # Freeze everything except the head for warmup
+    for name, p in model.named_parameters():
+        if "head" not in name:
+            p.requires_grad_(False)
 
     # Initialize the loss criterion based on the specified loss type (triplet or contrastive)
     if loss_type == "contrastive":
         criterion = ContrastiveLoss(margin=1.0)
     else:
-        criterion = TripletLoss(margin=0.3)
+        criterion = TripletLoss(margin=0.5)
 
     # Set up the optimizer (Adam) and learning rate scheduler (Cosine Annealing) for training
     optimizer = optim.Adam(model.parameters(), lr=LR)
@@ -168,13 +132,20 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     # Get the training and evaluation data loaders for metric learning
     train_loader, eval_loader = get_metric_loaders()
 
-    # Print training header with model name, parameter count, and FLOP count
-    metric_learning_section = f"Part B — Metric learning: {backbone_name}\n    Embedding dim : {EMBEDDING_DIM}\n    Loss          : {TripletLoss (margin=0.3)}"
+    # Print training header with model name, embedding dim, and loss type
+    metric_learning_section = f"Part B — Metric learning: {backbone_name}\n    Embedding dim : {EMBEDDING_DIM}\n    Loss          : {criterion}"
     cprint(format_section_header(metric_learning_section, align='left', width=55)[:-1], color="yellow")
 
     best_recall = 0.0
     best_state = None
     for epoch in range(1, EPOCHS + 1):
+
+        # Unfreeze the full model after warmup epochs
+        if epoch == WARMUP_EPOCHS + 1:
+            for p in model.parameters():
+                p.requires_grad_(True)
+            print("  [warmup done] backbone unfrozen")
+
         # Set model to training mode
         model.train()
 
@@ -186,8 +157,8 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
             # Zero the gradients before backpropagation
             optimizer.zero_grad()
 
-            # Compute embeddings for the current batch of images
-            embeddings = model(images)
+            # Compute L2-normalised embeddings for the current batch of images
+            embeddings = F.normalize(model(images), dim=1)
 
             # Build triplets (anchor, positive, negative) from the embeddings and labels
             triplets = build_triplets(embeddings, labels)
@@ -243,6 +214,9 @@ def main() -> None:
     """
     Main function to parse command-line arguments and initiate metric learning training.
     """
+    original_terminal = sys.stdout
+    logger_instance = Logger("results/train_metric_log.txt")
+    sys.stdout = logger_instance
 
     # Set up argument parser to allow selection of backbone architecture for training
     parser = argparse.ArgumentParser()
@@ -258,6 +232,9 @@ def main() -> None:
 
     # Start the metric learning training process with the specified backbone architecture
     train_metric(args.backbone)
+
+    sys.stdout = original_terminal
+    logger_instance.log.close()
 
 
 if __name__ == "__main__":
