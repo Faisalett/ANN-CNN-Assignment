@@ -41,6 +41,7 @@ End-to-end computer vision pipeline built on FashionMNIST across three stages: b
 │
 ├── requirements.txt             # Python dependencies
 ├── report.md                    # Project report
+├── result_table.md              # Results table (also included in the report)
 └── README.md                 
 ```
 
