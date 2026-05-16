@@ -28,7 +28,7 @@ from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
 from config import PART_A_MODELS, SEED
-from data import get_classification_loaders
+from data import get_classification_dataloaders
 from models import build_model
 from utils import cprint, format_section_header, format_underline, format_bold, Logger
 
@@ -351,7 +351,7 @@ def main() -> None:
     sys.stdout = logger_instance
 
     # Get data loaders for training and validation sets
-    train_loader, val_loader = get_classification_loaders()
+    train_loader, val_loader, test_loader = get_classification_dataloaders()
     results = []
 
     # Train each model specified in PART_A_MODELS and collect results for comparison in a summary table.

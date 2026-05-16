@@ -24,8 +24,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from config import SEED
-from data import get_metric_loaders
-from losses import TripletLoss, build_triplets, ContrastiveLoss
+from data import get_metric_dataloader, get_retrieval_eval_dataloader
+from losses import TripletLoss, ContrastiveLoss
 from loaders import load_backbone
 from utils import cprint, format_section_header, Logger
 import torch.nn.functional as F
@@ -35,8 +35,10 @@ import torch.nn.functional as F
 # ---------------------------------------------------------------------------
 EMBEDDING_DIM = 64
 LR = 5e-5
-EPOCHS = 30
-WARMUP_EPOCHS = 5
+BACK_BONE_LR = 1e-5  # or None to use LR defaults
+HEAD_LR = 1e-4  # or None to use LR defaults
+EPOCHS = 40
+WARMUP_EPOCHS = 10
 # ---------------------------------------------------------------------------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CHECKPOINT_DIR = "checkpoints/part_b"
@@ -96,6 +98,7 @@ def compute_recall_at_1(model: nn.Module, loader: DataLoader) -> float:
 
     return hits / n
 
+
 def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     """
     Train a metric learning model with the specified backbone architecture.
@@ -125,12 +128,25 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     else:
         criterion = TripletLoss(margin=0.5)
 
-    # Set up the optimizer (Adam) and learning rate scheduler (Cosine Annealing) for training
-    optimizer = optim.Adam(model.parameters(), lr=LR)
+    # Set up the optimizer (Adam) with diff learning rates if specified, otherwise use the same LR for all parameters
+    if BACK_BONE_LR is not None or HEAD_LR is not None:
+        print(f"Using custom learning rates — backbone: {BACK_BONE_LR or LR}, head: {HEAD_LR or LR}")
+        backbone_params = list(model.stem.parameters()) + list(model.features.parameters())
+        head_params = list(model.head.parameters())
+        optimizer = optim.Adam([
+            {"params": backbone_params, "lr": BACK_BONE_LR or LR},
+            {"params": head_params, "lr": HEAD_LR or LR}
+        ])
+    else:
+        print(f"Using learning rates for Adam optimizer: {LR} for all parameters")
+        optimizer = optim.Adam(model.parameters(), lr=LR)
+
+    # Set up learning rate scheduler (Cosine Annealing)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
     # Get the training and evaluation data loaders for metric learning
-    train_loader, eval_loader = get_metric_loaders()
+    train_loader = get_metric_dataloader(loss_name=loss_type)
+    eval_loader = get_retrieval_eval_dataloader()
 
     # Print training header with model name, embedding dim, and loss type
     metric_learning_section = f"Part B — Metric learning: {backbone_name}\n    Embedding dim : {EMBEDDING_DIM}\n    Loss          : {criterion}"
@@ -140,34 +156,43 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     best_state = None
     for epoch in range(1, EPOCHS + 1):
 
-        # Unfreeze the full model after warmup epochs
+        # Unfreeze the full model after warmup epochs or immediately if WARMUP_EPOCHS is set to 0
         if epoch == WARMUP_EPOCHS + 1:
             for p in model.parameters():
                 p.requires_grad_(True)
-            print("  [warmup done] backbone unfrozen")
+            if WARMUP_EPOCHS > 0:
+                print("  [warmup done] backbone unfrozen")
 
         # Set model to training mode
         model.train()
 
         total_loss = 0.0
         n_batches = 0
-        for images, labels in train_loader:
-            images, labels = images.to(DEVICE), labels.to(DEVICE)
-
+        for batch in train_loader:
             # Zero the gradients before backpropagation
             optimizer.zero_grad()
 
-            # Compute L2-normalised embeddings for the current batch of images
-            embeddings = F.normalize(model(images), dim=1)
+            # handle both loss types in the same loop by unpacking the batch accordingly and computing the loss based on the specified loss type
+            if loss_type == "contrastive":
+                image_a, image_b, pair_label = batch
+                image_a = image_a.to(DEVICE)
+                image_b = image_b.to(DEVICE)
+                pair_label = pair_label.to(DEVICE)
 
-            # Build triplets (anchor, positive, negative) from the embeddings and labels
-            triplets = build_triplets(embeddings, labels)
-            if triplets is None:
-                continue
-            anchors, positives, negatives = triplets
+                z1 = F.normalize(model(image_a), dim=1)
+                z2 = F.normalize(model(image_b), dim=1)
+                loss = criterion(z1, z2, pair_label)
 
-            # Compute the triplet loss for the current batch
-            loss = criterion(anchors, positives, negatives)
+            else:  # triplet
+                anchors_img, positives_img, negatives_img = batch
+                anchors_img = anchors_img.to(DEVICE)
+                positives_img = positives_img.to(DEVICE)
+                negatives_img = negatives_img.to(DEVICE)
+
+                anchors = F.normalize(model(anchors_img), dim=1)
+                positives = F.normalize(model(positives_img), dim=1)
+                negatives = F.normalize(model(negatives_img), dim=1)
+                loss = criterion(anchors, positives, negatives)
 
             # Backpropagate the loss and update model parameters
             loss.backward()

@@ -1,42 +1,53 @@
 Loaded Part A weights for 'separable_cnn'
 Randomly initialized: ['head.weight', 'head.bias']
+Using custom learning rates — backbone: 1e-05, head: 0.0001
 
 =======================================================
 Part B — Metric learning: separable_cnn
     Embedding dim : 64
     Loss          : TripletLoss()
 =======================================================[0
-  Epoch 01/30 | loss 0.5082 | Recall@1 0.8245
-  Epoch 02/30 | loss 0.4892 | Recall@1 0.8250
-  Epoch 03/30 | loss 0.4739 | Recall@1 0.8235
-  Epoch 04/30 | loss 0.4648 | Recall@1 0.8230
-  Epoch 05/30 | loss 0.4595 | Recall@1 0.8225
+  Epoch 01/40 | loss 0.0452 | Recall@1 0.8375
+  Epoch 02/40 | loss 0.0400 | Recall@1 0.8370
+  Epoch 03/40 | loss 0.0386 | Recall@1 0.8350
+  Epoch 04/40 | loss 0.0394 | Recall@1 0.8385
+  Epoch 05/40 | loss 0.0379 | Recall@1 0.8375
+  Epoch 06/40 | loss 0.0378 | Recall@1 0.8400
+  Epoch 07/40 | loss 0.0377 | Recall@1 0.8400
+  Epoch 08/40 | loss 0.0377 | Recall@1 0.8380
+  Epoch 09/40 | loss 0.0365 | Recall@1 0.8360
+  Epoch 10/40 | loss 0.0368 | Recall@1 0.8350
   [warmup done] backbone unfrozen
-  Epoch 06/30 | loss 0.4524 | Recall@1 0.8235
-  Epoch 07/30 | loss 0.4372 | Recall@1 0.8240
-  Epoch 08/30 | loss 0.4228 | Recall@1 0.8280
-  Epoch 09/30 | loss 0.4157 | Recall@1 0.8230
-  Epoch 10/30 | loss 0.4139 | Recall@1 0.8205
-  Epoch 11/30 | loss 0.4077 | Recall@1 0.8270
-  Epoch 12/30 | loss 0.4041 | Recall@1 0.8260
-  Epoch 13/30 | loss 0.4024 | Recall@1 0.8235
-  Epoch 14/30 | loss 0.3926 | Recall@1 0.8185
-  Epoch 15/30 | loss 0.3970 | Recall@1 0.8210
-  Epoch 16/30 | loss 0.3915 | Recall@1 0.8215
-  Epoch 17/30 | loss 0.3880 | Recall@1 0.8240
-  Epoch 18/30 | loss 0.3865 | Recall@1 0.8170
-  Epoch 19/30 | loss 0.3831 | Recall@1 0.8245
-  Epoch 20/30 | loss 0.3829 | Recall@1 0.8220
-  Epoch 21/30 | loss 0.3779 | Recall@1 0.8195
-  Epoch 22/30 | loss 0.3803 | Recall@1 0.8175
-  Epoch 23/30 | loss 0.3743 | Recall@1 0.8220
-  Epoch 24/30 | loss 0.3765 | Recall@1 0.8190
-  Epoch 25/30 | loss 0.3760 | Recall@1 0.8250
-  Epoch 26/30 | loss 0.3773 | Recall@1 0.8210
-  Epoch 27/30 | loss 0.3734 | Recall@1 0.8215
-  Epoch 28/30 | loss 0.3785 | Recall@1 0.8200
-  Epoch 29/30 | loss 0.3767 | Recall@1 0.8210
-  Epoch 30/30 | loss 0.3781 | Recall@1 0.8265
+  Epoch 11/40 | loss 0.0372 | Recall@1 0.8270
+  Epoch 12/40 | loss 0.0360 | Recall@1 0.8365
+  Epoch 13/40 | loss 0.0351 | Recall@1 0.8325
+  Epoch 14/40 | loss 0.0355 | Recall@1 0.8300
+  Epoch 15/40 | loss 0.0341 | Recall@1 0.8315
+  Epoch 16/40 | loss 0.0337 | Recall@1 0.8315
+  Epoch 17/40 | loss 0.0343 | Recall@1 0.8335
+  Epoch 18/40 | loss 0.0332 | Recall@1 0.8325
+  Epoch 19/40 | loss 0.0322 | Recall@1 0.8275
+  Epoch 20/40 | loss 0.0327 | Recall@1 0.8375
+  Epoch 21/40 | loss 0.0325 | Recall@1 0.8355
+  Epoch 22/40 | loss 0.0320 | Recall@1 0.8335
+  Epoch 23/40 | loss 0.0324 | Recall@1 0.8325
+  Epoch 24/40 | loss 0.0321 | Recall@1 0.8320
+  Epoch 25/40 | loss 0.0314 | Recall@1 0.8325
+  Epoch 26/40 | loss 0.0315 | Recall@1 0.8320
+  Epoch 27/40 | loss 0.0316 | Recall@1 0.8355
+  Epoch 28/40 | loss 0.0310 | Recall@1 0.8410
+  Epoch 29/40 | loss 0.0312 | Recall@1 0.8385
+  Epoch 30/40 | loss 0.0311 | Recall@1 0.8325
+  Epoch 31/40 | loss 0.0311 | Recall@1 0.8300
+  Epoch 32/40 | loss 0.0301 | Recall@1 0.8360
+  Epoch 33/40 | loss 0.0306 | Recall@1 0.8315
+  Epoch 34/40 | loss 0.0309 | Recall@1 0.8345
+  Epoch 35/40 | loss 0.0307 | Recall@1 0.8340
+  Epoch 36/40 | loss 0.0305 | Recall@1 0.8345
+  Epoch 37/40 | loss 0.0299 | Recall@1 0.8335
+  Epoch 38/40 | loss 0.0301 | Recall@1 0.8335
+  Epoch 39/40 | loss 0.0300 | Recall@1 0.8340
+  Epoch 40/40 | loss 0.0316 | Recall@1 0.8365
 
-  Best Recall@1: 0.8280
+  Best Recall@1: 0.8410
   Saved checkpoint → checkpoints/part_b/separable_cnn_metric.pt

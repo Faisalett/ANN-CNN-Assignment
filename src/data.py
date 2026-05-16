@@ -34,114 +34,18 @@ import random
 from collections import defaultdict
 from typing import Sequence, Tuple
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import datasets, transforms
 
 from config import (
-    CLASSIFICATION_BATCH_SIZE,
     CLASSIFICATION_TRAIN_SIZE,
     CLASSIFICATION_VAL_SIZE,
     DATA_ROOT,
-    METRIC_BATCH_SIZE,
     METRIC_EVAL_SIZE,
     METRIC_TRAIN_SIZE,
     SEED,
 )
-
-
-def _seed_everything(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-
-
-def _get_transform() -> transforms.Compose:
-    return transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.2860,), (0.3530,)),  # FashionMNIST mean/std
-        ]
-    )
-
-
-def get_classification_loaders(
-        batch_size: int = CLASSIFICATION_BATCH_SIZE,
-) -> tuple[DataLoader, DataLoader]:
-    """
-    Return (train_loader, val_loader) for Part A classification.
-
-    Subset sizes are fixed by config.CLASSIFICATION_TRAIN_SIZE and
-    config.CLASSIFICATION_VAL_SIZE so results are comparable across students.
-    """
-    _seed_everything(SEED)
-    transform = _get_transform()
-
-    full_train = datasets.FashionMNIST(
-        DATA_ROOT, train=True, download=True, transform=transform
-    )
-    full_val = datasets.FashionMNIST(
-        DATA_ROOT, train=False, download=True, transform=transform
-    )
-
-    rng = np.random.default_rng(SEED)
-    train_indices = rng.choice(len(full_train), size=CLASSIFICATION_TRAIN_SIZE, replace=False)
-    val_indices = rng.choice(len(full_val), size=CLASSIFICATION_VAL_SIZE, replace=False)
-
-    train_loader = DataLoader(
-        Subset(full_train, train_indices),
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=2,
-        pin_memory=True,
-    )
-    val_loader = DataLoader(
-        Subset(full_val, val_indices),
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=2,
-        pin_memory=True,
-    )
-    return train_loader, val_loader
-
-
-def get_metric_loaders(batch_size: int = METRIC_BATCH_SIZE,) -> tuple[DataLoader, DataLoader]:
-    """
-    Return (train_loader, eval_loader) for Part B metric learning.
-
-    Subset sizes are fixed by config.METRIC_TRAIN_SIZE and
-    config.METRIC_EVAL_SIZE so retrieval experiments are comparable.
-    """
-    _seed_everything(SEED)
-    transform = _get_transform()
-
-    full_train = datasets.FashionMNIST(
-        DATA_ROOT, train=True, download=True, transform=transform
-    )
-    full_eval = datasets.FashionMNIST(
-        DATA_ROOT, train=False, download=True, transform=transform
-    )
-
-    rng = np.random.default_rng(SEED)
-    train_indices = rng.choice(len(full_train), size=METRIC_TRAIN_SIZE, replace=False)
-    eval_indices = rng.choice(len(full_eval), size=METRIC_EVAL_SIZE, replace=False)
-
-    train_loader = DataLoader(
-        Subset(full_train, train_indices),
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=2,
-        pin_memory=True,
-    )
-    eval_loader = DataLoader(
-        Subset(full_eval, eval_indices),
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=2,
-        pin_memory=True,
-    )
-    return train_loader, eval_loader
 
 
 def _build_indices_by_class(targets: Sequence[int]) -> dict:

@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from PIL import Image
 
-from data import get_metric_loaders
+from data import get_retrieval_eval_dataloader
 from loaders import load_metric_model, embed_loader
 from utils import colorize, cprint
 
@@ -188,7 +188,7 @@ def visualize_retrieval(backbone_name: str, n_queries: int = 12, top_k: int = 10
 
     # Load the trained metric model and the eval DataLoader and embed the eval set to get embeddings and labels
     model = load_metric_model(backbone_name)
-    _, eval_loader = get_metric_loaders()
+    eval_loader = eval_loader = get_retrieval_eval_dataloader()
 
     print("  Embedding eval set …")
     db_embs, db_labels, db_imgs = embed_loader(model, eval_loader)

@@ -38,7 +38,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from config import COMPRESSION_STUDENT_MODEL, SEED
-from data import get_metric_loaders
+from data import get_metric_dataloader, get_retrieval_eval_dataloader
 from models import build_model
 from utils import format_subsection_header, cprint, Logger
 from train_metric import compute_recall_at_1
@@ -63,8 +63,7 @@ DISTILL_TEMPERATURE = 4.0   # softens teacher embeddings
 DISTILL_ALPHA = 0.5         # weight between embedding MSE and triplet loss
 
 # Pruning
-PRUNE_LEVELS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
-
+PRUNE_LEVELS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -99,8 +98,7 @@ def count_parameters(model: nn.Module) -> int:
     Parameters
     ----------
     model : nn.Module
-        The PyTorch model for which to count the parameters. The function iterates through all parameters
-        and sums the number of elements for those that require gradients (i.e., are trainable).
+        The PyTorch model for which to count the parameters.
 
     Returns
     -------
@@ -108,6 +106,23 @@ def count_parameters(model: nn.Module) -> int:
         The total number of trainable parameters in the model.
     """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def count_nonzero_parameters(model: nn.Module) -> int:
+    """
+    Count the number of trainable non-zero parameters in the model.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The PyTorch model for which to count the non-zero parameters.
+
+    Returns
+    -------
+    int
+        The total number of trainable non-zero parameters in the model.
+    """
+    return sum((p != 0).sum().item() for p in model.parameters() if p.requires_grad)
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +209,7 @@ def run_pruning(backbone_name: str, eval_loader) -> list[dict]:
         # Compute Recall@1 for the pruned model and calculate the drop from the baseline
         recall = compute_recall_at_1(model, eval_loader)
         drop = baseline_recall - recall
-        params = count_parameters(model)
+        params = count_nonzero_parameters(model)
 
         # Format the label for the current pruning level and print the results in a tabular format
         label = f"{int(target_sparsity * 100):3d}%"
@@ -358,9 +373,10 @@ def run_distillation(backbone_name: str, eval_loader, train_loader) -> None:
 
         total_loss = 0.0
         n_batches = 0
-        for images, _ in train_loader:
-            # Move images to DEVICE and zero the optimizer gradients before backpropagation
-            images = images.to(DEVICE)
+        for batch in train_loader:
+            images = batch[0].to(DEVICE)  # Same for both triplet and contrastive loaders
+
+            # Set gradients to zero before backpropagation for the current batch
             optimizer.zero_grad()
             with torch.no_grad():
                 teacher_emb = teacher(images)
@@ -421,6 +437,7 @@ def run_distillation(backbone_name: str, eval_loader, train_loader) -> None:
     )
     cprint(f"\n  Saved distilled student → {ckpt_path}")
 
+
 def main() -> None:
     """
     Main function to parse command-line arguments and run the pruning and distillation subsections.
@@ -436,11 +453,14 @@ def main() -> None:
                         help="Skip the pruning subsection")
     parser.add_argument("--skip_distill", action="store_true",
                         help="Skip the distillation subsection")
+    parser.add_argument("--loss", default="triplet", choices=["triplet", "contrastive"],
+                        help="Metric learning loss to use for distillation (default: triplet)")
     args = parser.parse_args()
 
     # Set random seed for reproducibility and load the evaluation and training data loaders
     torch.manual_seed(SEED)
-    train_loader, eval_loader = get_metric_loaders()
+    train_loader = get_metric_dataloader(loss_name=args.loss)
+    eval_loader = get_retrieval_eval_dataloader()
 
     # Run pruning
     if not args.skip_pruning:

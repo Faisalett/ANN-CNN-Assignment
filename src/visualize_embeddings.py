@@ -22,7 +22,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from data import get_metric_loaders
+from data import get_retrieval_eval_dataloader
 from config import SEED
 from loaders import load_metric_model, embed_loader
 from utils import cprint
@@ -138,7 +138,7 @@ def visualize_embeddings(backbone_name: str, n_samples: int = 2000) -> None:
 
     # Load the trained metric model and the eval DataLoader and embed the eval set to get embeddings and labels
     model = load_metric_model(backbone_name, print_recall=False)
-    _, eval_loader = get_metric_loaders()
+    eval_loader = get_retrieval_eval_dataloader()
 
     print("  Embedding eval set …")
     embeddings, labels, _ = embed_loader(model, eval_loader)

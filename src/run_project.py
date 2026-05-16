@@ -31,6 +31,7 @@ import argparse
 import os
 import sys
 
+import torch
 from utils import cprint, format_section_header, format_subsection_header
 
 
@@ -44,7 +45,6 @@ def _best_part_a_backbone() -> str:
     checkpoint has the highest stored val accuracy.  Falls back to
     'separable_cnn' if no checkpoints exist.
     """
-    import torch
 
     ckpt_dir = "checkpoints/part_a"
     if not os.path.isdir(ckpt_dir):
@@ -112,11 +112,11 @@ def _run_part_b(backbone: str, n_samples : int, n_queries: int, top_k: int, loss
     )
 
 
-def _run_part_c(backbone: str, skip_pruning: bool, skip_distill: bool) -> None:
+def _run_part_c(backbone: str, skip_pruning: bool, skip_distill: bool, loss: str) -> None:
     cprint(format_section_header(f"PART C — Compression (backbone: {backbone}, Pruning: {not skip_pruning}, Distilling: {not skip_distill})"), color="cyan")
 
     import prune_and_distill
-    argv = ["prune_and_distill.py", "--backbone", backbone]
+    argv = ["prune_and_distill.py", "--backbone", backbone, "--loss", loss]
     if skip_pruning:
         argv.append("--skip_pruning")
     if skip_distill:
@@ -137,7 +137,6 @@ def _argv_ctx(argv: list[str], fn) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="End-to-end project runner.")
     parser.add_argument(
@@ -149,8 +148,8 @@ def main() -> None:
         choices=["cnn", "separable_cnn"],
         help="Backbone for Parts B/C. Auto-selected from Part A if omitted.",
     )
-    parser.add_argument("--loss", default="triplet", choices=["triplet", "contrastive"], help="Metric learning loss to use in Part B (default: triplet)")
-    parser.add_argument( "--n_samples", type=int, default=2000, help="Max samples passed to t-SNE in Part B (default: 2000)")
+    parser.add_argument("--loss", default="triplet", choices=["triplet", "contrastive"], help="Metric learning loss to use in Part B and C (default: triplet)")
+    parser.add_argument("--n_samples", type=int, default=2000, help="Max samples passed to t-SNE in Part B (default: 2000)")
     parser.add_argument("--n_queries", type=int, default=12, help="Number of query rows in the retrieval grid (default: 12)")
     parser.add_argument("--top_k",     type=int, default=10, help="Number of nearest neighbours in the retrieval grid (default: 10)")
     parser.add_argument("--skip_pruning", action="store_true", help="Skip pruning in Part C")
@@ -172,7 +171,7 @@ def main() -> None:
         _run_part_b(backbone, args.n_samples, args.n_queries, args.top_k, args.loss)
 
     if "C" in parts:
-        _run_part_c(backbone, args.skip_pruning, args.skip_distill)
+        _run_part_c(backbone, args.skip_pruning, args.skip_distill, args.loss)
 
     cprint(format_section_header(f" ALl requested parts complete.\n   Backbone used for B/C : {backbone}\n   Outputs               : results/\n   Checkpoints           : checkpoints/", align='left'), color="green")
 

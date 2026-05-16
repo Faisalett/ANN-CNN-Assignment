@@ -199,18 +199,15 @@ def cprintf(template, color_true='blue', color_false='red', **kwargs):
 class Logger(object):
     def __init__(self, filename="run_log.txt"):
         self.terminal = sys.stdout
-        self.log = open(filename, "w") # "a" appends, "w" overwrites
-
-        # Regex to match ANSI escape codes (for removing color codes from log file)
-        self.ansi_escape = re.compile(r'\x1b\[[0-9;]*[mK]')
+        self.log = open(filename, "w")
+        # Matches all ANSI escape sequences: colors, bold, underline, reset, etc.
+        self.ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
 
     def write(self, message):
         self.terminal.write(message)
         clean_message = self.ansi_escape.sub('', message)
         self.log.write(clean_message)
-        self.log.flush() # Ensures it writes to disk immediately
+        self.log.flush()
 
     def flush(self):
-        # This flush method is needed for python 3 compatibility.
         pass
-
