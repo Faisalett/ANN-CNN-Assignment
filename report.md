@@ -168,8 +168,8 @@ The student was initialised from random weights.
 | | Recall@1 | Parameters | FLOPs (approx.) |
 |---|---|---|---|
 | Teacher (SeparableCNN) | 0.8410 | 38,304 | 3,947,648 |
-| Student before distillation | 0.3150 | 12,528 | ~1,300,000 |
-| Student after distillation | **0.7855** | 12,528 | ~1,300,000 |
+| Student before distillation | 0.3150 | 12,528 | 1,177,920 |
+| Student after distillation | **0.7855** | 12,528 | 1,177,920 |
 
 **Retrieval retention: 93.4%** at **3.1× parameter compression**.
 
@@ -185,11 +185,11 @@ indicating the student has learned to mimic the angular structure of the teacher
 ## Final Discussion: Deployment Tradeoff
 
 | Model | Recall@1 | Parameters | Relative FLOPs | Notes |
-|---|---|---|---|---|
-| Teacher (SeparableCNN) | 0.841 | 38,304 | 1.0× | Best quality |
+|---|---|---|------------|---|
+| Teacher (SeparableCNN) | 0.841 | 38,304 | 1.0×       | Best quality |
 | Pruned 50% | 0.793 | 19,742 | 1.0× (sparse) | Same architecture, fewer active weights |
 | Pruned 60% | 0.787 | 16,030 | 1.0× (sparse) | Near student quality, no retraining |
-| Distilled student | 0.786 | 12,528 | ~0.33× | Smaller architecture, faster on any hardware |
+| Distilled student | 0.786 | 12,528 | 0.35×     | Smaller architecture, faster on any hardware |
 
 Both compression methods achieve similar Recall@1 (~0.79) at similar parameter counts, but through different mechanisms with different deployment implications.
 
