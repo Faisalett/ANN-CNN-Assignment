@@ -45,8 +45,10 @@ The SeparableCNN backbone was initialised from the Part A checkpoint. The classi
 The model was fine-tuned for retrieval using **triplet loss** (margin = 0.5) on a fixed subset of 10,000 training samples, evaluated on 2,000 test samples via Recall@1.
 
 Training used a two-phase schedule with cosine annealing LR decay over 40 epochs:
-- **Warmup (epochs 1–10)**: backbone frozen, only the embedding head trained (backbone LR = 1e-5, head LR = 1e-4). This preserves the pre-trained features while the head adapts to the metric learning objective.
-- **Full fine-tuning (epochs 11–40)**: entire model unfrozen with the same differential starting LRs, decayed to near zero by epoch 40.
+- **Warmup (epochs 1–10)**: backbone frozen, only the embedding head trained (backbone LR = 1e-5, head LR = 1e-4). 
+This preserves the pre-trained features while the head adapts to the metric learning objective.
+- **Full fine-tuning (epochs 11–40)**: entire model unfrozen with the same differential starting LRs, 
+decayed to near zero by epoch 40 (with cosine annealing).
 
 Embeddings are L2-normalised before loss computation, so distances are cosine distances on the unit hypersphere. The provided `TripletFashionDataset` was used for deterministic, reproducible triplet construction.
 

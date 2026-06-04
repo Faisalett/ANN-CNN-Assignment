@@ -59,11 +59,12 @@ STUDENT_EMBEDDING_DIM = 64
 # Distillation
 DISTILL_LR = 3e-4
 DISTILL_EPOCHS = 20
-DISTILL_TEMPERATURE = 4.0   # softens teacher embeddings
-DISTILL_ALPHA = 0.5         # weight between embedding MSE and triplet loss
+DISTILL_TEMPERATURE = 4.0  # softens teacher embeddings
+DISTILL_ALPHA = 0.5  # weight between embedding MSE and triplet loss
 
 # Pruning
 PRUNE_LEVELS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -193,7 +194,7 @@ def run_pruning(backbone_name: str, eval_loader) -> list[dict]:
     # Baseline Recall@1 before pruning
     baseline_recall = compute_recall_at_1(teacher, eval_loader)
     print(f"\n  Sparsity   Actual   Params     Recall@1   Drop")
-    print(f"  {'-'*52}")
+    print(f"  {'-' * 52}")
 
     # Iterate over the defined pruning levels, apply pruning to the model, evaluate Recall@1, and save results
     for target_sparsity in PRUNE_LEVELS:
@@ -209,14 +210,14 @@ def run_pruning(backbone_name: str, eval_loader) -> list[dict]:
         # Compute Recall@1 for the pruned model and calculate the drop from the baseline
         recall = compute_recall_at_1(model, eval_loader)
         drop = baseline_recall - recall
-        params = count_nonzero_parameters(model)
+        params = count_nonzero_parameters(model) # we set parameters to zero when pruning, we dont remove them.
 
         # Format the label for the current pruning level and print the results in a tabular format
         label = f"{int(target_sparsity * 100):3d}%"
         print(f"  {label}       {actual_sparsity:.2f}    {params:>9,}    {recall:.4f}     {drop:+.4f}")
 
         # Save the pruned model checkpoint with metadata about the pruning level and performance
-        ckpt_path = os.path.join(CHECKPOINT_DIR, f"pruned_{int(target_sparsity*100):03d}.pt")
+        ckpt_path = os.path.join(CHECKPOINT_DIR, f"pruned_{int(target_sparsity * 100):03d}.pt")
         torch.save(
             {
                 "model_state": model.state_dict(),
@@ -338,7 +339,8 @@ def run_distillation(backbone_name: str, eval_loader, train_loader) -> None:
     train_loader : DataLoader
         The DataLoader for the training set, used to provide batches of images for distillation training of the student model.
     """
-    cprint(format_subsection_header(f"Knowledge Distillation - Teacher : {backbone_name}, Student : {COMPRESSION_STUDENT_MODEL}"), color="cyan")
+    cprint(format_subsection_header(
+        f"Knowledge Distillation - Teacher : {backbone_name}, Student : {COMPRESSION_STUDENT_MODEL}"), color="cyan")
 
     # Load teacher model and set to eval mode
     teacher = load_teacher(backbone_name, EMBEDDING_DIM)
@@ -363,7 +365,7 @@ def run_distillation(backbone_name: str, eval_loader, train_loader) -> None:
     # Recall@1 before distillation
     recall_before = compute_recall_at_1(student, eval_loader)
     print(f"\n  Student Recall@1 (before distillation): {recall_before:.4f}")
-    print(f"  {'─'*45}")
+    print(f"  {'─' * 45}")
 
     best_recall = 0.0
     best_state = None
@@ -413,14 +415,14 @@ def run_distillation(backbone_name: str, eval_loader, train_loader) -> None:
     recall_after = compute_recall_at_1(student, eval_loader)
     teacher_recall = compute_recall_at_1(teacher, eval_loader)
 
-    print(f"\n  {'─'*45}")
+    print(f"\n  {'─' * 45}")
     print(f"  Teacher Recall@1              : {teacher_recall:.4f}")
     print(f"  Student Recall@1 (before)     : {recall_before:.4f}")
     print(f"  Student Recall@1 (after)      : {recall_after:.4f}")
     retention = recall_after / max(teacher_recall, 1e-8) * 100
     print(f"  Retrieval retention           : {retention:.1f}%")
     print(f"  Compression ratio (params)    : {compression_ratio:.1f}×")
-    print(f"  {'─'*45}")
+    print(f"  {'─' * 45}")
 
     # Save the distilled student checkpoint with metadata
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)

@@ -82,7 +82,7 @@ def count_flops(model: nn.Module, input_channels: int = 1, img_size: int = 28) -
     dummy = torch.randn(1, input_channels, img_size, img_size).to(DEVICE)
 
     try:
-        # Attempt to use the PyTorch Profiler for a high-fidelity FLOP count
+        # Try to use the PyTorch Profiler for a high-fidelity FLOP count
         from torch.profiler import profile, ProfilerActivity
         with profile(
                 activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA] if torch.cuda.is_available() else [
@@ -109,6 +109,8 @@ def count_flops(model: nn.Module, input_channels: int = 1, img_size: int = 28) -
 
     # This loop estimates computational cost for standard architecture components
     for module in model.modules():
+
+        # Compute FLOPs for convolutional layers using the formula: 2 * (K^2 * Cin / groups) * Cout * H_out * W_out
         if isinstance(module, nn.Conv2d):
             # Calculate output feature map dimensions based on padding, kernel size, and stride
             kh, kw = module.kernel_size
@@ -118,13 +120,12 @@ def count_flops(model: nn.Module, input_channels: int = 1, img_size: int = 28) -
             h = (h + 2 * ph - kh) // sh + 1
             w = (w + 2 * pw - kw) // sw + 1
 
-            # Compute FLOPs using the formula: 2 * (K^2 * Cin / groups) * Cout * H_out * W_out
             # The '2' accounts for the Multiply-Accumulate (MAC) operation
             layer_flops = 2 * (kh * kw * module.in_channels // module.groups) * module.out_channels * h * w
             total_flops += layer_flops
 
+        # Compute FLOPs for fully connected layers: 2 * Input_Features * Output_Features
         elif isinstance(module, nn.Linear):
-            # Compute FLOPs for fully connected layers: 2 * Input_Features * Output_Features
             total_flops += 2 * module.in_features * module.out_features
 
     return int(total_flops)
@@ -132,7 +133,7 @@ def count_flops(model: nn.Module, input_channels: int = 1, img_size: int = 28) -
 
 def train_one_epoch(model: nn.Module, loader: DataLoader, criterion: nn.Module, optimizer: optim.Optimizer) -> float:
     """
-    Train the model for one epoch and return the average training loss.
+    Train the model for one epoch and return the average training loss for that epoch.
 
     Parameters
     ----------
@@ -153,27 +154,25 @@ def train_one_epoch(model: nn.Module, loader: DataLoader, criterion: nn.Module, 
 
     # Set model to training mode
     model.train()
-    total_loss = 0.0
 
+    total_loss = 0.0
     for images, labels in loader:
         images, labels = images.to(DEVICE), labels.to(DEVICE)
 
-        # Clear existing gradients from the previous step to avoid accumulation
+        # Reset the gradients from the previous step to avoid accumulation
         optimizer.zero_grad()
 
-        # Forward pass: compute model output (logits) for the current batch
+        # Forward pass
+        # Compute logits and calculate the loss
         logits = model(images)
-
-        # Calculate loss (the distance between predictions and actual labels)
         loss = criterion(logits, labels)
 
-        # Backward pass: compute gradients of the loss with respect to model parameters
+        # Backward pass:
+        # compute gradients of the loss w.r.t the model's parameters and update parameters using the gradients
         loss.backward()
-
-        # Update model parameters based on computed gradients
         optimizer.step()
 
-        # Accumulate loss weighted by the current batch size
+        # Calculate the total loss for the epoch
         total_loss += loss.item() * images.size(0)
 
     return total_loss / len(loader.dataset)
@@ -183,6 +182,7 @@ def train_one_epoch(model: nn.Module, loader: DataLoader, criterion: nn.Module, 
 def evaluate(model: nn.Module, loader: DataLoader) -> tuple[float, float]:
     """
     Evaluate the model on the given DataLoader and return accuracy and macro F1 score.
+    torch.no_grad() is used to disable gradient calculations during evaluation, because we don't want/need to do a backward pass
 
     Parameters
     ----------
@@ -201,6 +201,7 @@ def evaluate(model: nn.Module, loader: DataLoader) -> tuple[float, float]:
 
     # Set the model to evaluation mode
     model.eval()
+
     all_preds, all_labels = [], []
     for images, labels in loader:
         images = images.to(DEVICE)
@@ -250,9 +251,9 @@ def train_model(name: str, train_loader: DataLoader, val_loader: DataLoader) -> 
     # Ensure reproducibility by setting the random seed before model initialization
     torch.manual_seed(SEED)
 
-    # Initialize the model, loss function, optimizer, and learning rate scheduler
-    model = build_model(name, num_classes=10, input_channels=1).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+    # Initialize the model, loss function, optimizer, and learning rate scheduler (Annealing)
+    model = build_model(name, num_classes=10, input_channels=1).to(DEVICE)      # FashionMNIST has 10 classes and 1 input channel (grayscale images)
+    criterion = nn.CrossEntropyLoss()                                           # Cross entropy loss is used (standard for multi-class classification tasks)
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
@@ -269,7 +270,7 @@ def train_model(name: str, train_loader: DataLoader, val_loader: DataLoader) -> 
 
         # Execute training and evaluation for the current epoch
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer)
-        val_acc, val_f1 = evaluate(model, val_loader)
+        val_acc, val_f1 = evaluate(model, val_loader)  # No Backpropogation for evaluation
 
         # Update learning rate based on the current epoch
         scheduler.step()
@@ -283,10 +284,10 @@ def train_model(name: str, train_loader: DataLoader, val_loader: DataLoader) -> 
             best_acc = val_acc
             best_state = {k: v.clone() for k, v in model.state_dict().items()}
 
-    # Reload best weights
+    # Reload the weights into the model with the highest val accuracy
     model.load_state_dict(best_state)
 
-    # Save the checkpoint for best model state to disk for later use in Part B and reproducibility
+    # Save the checkpoint for best model state to disk for later use in Part B
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
     ckpt_path = os.path.join(CHECKPOINT_DIR, f"{name}.pt")
     torch.save({"model_state": best_state, "model_name": name}, ckpt_path)

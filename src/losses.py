@@ -2,8 +2,8 @@
 Metric learning losses for Part B.
 
 Provides:
-- ContrastiveLoss  (Hadsell et al., CVPR 2006)
-- TripletLoss      (Schroff et al., CVPR 2015)
+- ContrastiveLoss
+- TripletLoss
 """
 
 import torch

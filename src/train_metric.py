@@ -49,6 +49,7 @@ def compute_recall_at_1(model: nn.Module, loader: DataLoader) -> float:
     """
     Compute Recall@1: for each query embedding, check whether the nearest
     neighbour (excluding itself) shares the same class.
+    torch.no_grad is used to disable gradient computation as we don't want/need backpropagation during evaluation.
 
     Parameters
     ----------
@@ -117,7 +118,7 @@ def train_metric(backbone_name: str, loss_type: str = "triplet") -> None:
     # Load the backbone model with Part A weights and replace the head for metric learning
     model = load_backbone(backbone_name, EMBEDDING_DIM)
 
-    # Freeze everything except the head for warmup
+    # Freeze everything except the head (FC layers/ Classifier) for warmup
     for name, p in model.named_parameters():
         if "head" not in name:
             p.requires_grad_(False)
