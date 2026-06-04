@@ -35,6 +35,7 @@
 |---|---|---|
 | Recall@1 | 0.8410 | **0.7855** |
 | Parameters | 38,304 | 12,528 |
-| FLOPs (approx.) | 3,947,648 | ~1,300,000 |
+| FLOPs (approx.) | 3,947,648 | 1,177,920 |
 | Compression | 1.0× | **3.1×** |
+| FLOPs Reduction | 1.0× | **3.4×** |
 | Retention | — | **93.4%** |
